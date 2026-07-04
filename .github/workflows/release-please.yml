@@ -1,0 +1,41 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: go
+          # Use a PAT (secrets.MY_RELEASE_PLEASE_TOKEN) instead of GITHUB_TOKEN
+          # if you want CI checks to run on Release Please PRs.
+
+      - uses: actions/checkout@v4
+        if: ${{ steps.release.outputs.releases_created }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+        if: ${{ steps.release.outputs.releases_created }}
+
+      - name: Build and upload artifacts
+        if: ${{ steps.release.outputs.releases_created }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"
+          go build -ldflags="-X main.version=$version" -o bin/ai-text-sanitizer ./cmd/ai-text-sanitizer
+          gh release upload "${{ steps.release.outputs.tag_name }}" bin/ai-text-sanitizer --clobber
