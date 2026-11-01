@@ -23,22 +23,22 @@ jobs:
           # if you want CI checks to run on Release Please PRs.
 
       - uses: actions/checkout@v4
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         with:
           fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         with:
           go-version-file: go.mod
 
       - name: Install syft (SBOMs)
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         uses: anchore/sbom-action/download-syft@v0
 
       - name: Build and upload release artifacts
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
