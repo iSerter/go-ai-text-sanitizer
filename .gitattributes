@@ -1,3 +1,5 @@
 # Test data must keep its exact bytes (line endings included) on every OS.
 aisanitizer/testdata/** -text
 *.go text eol=lf
+# README rules table is compared byte-for-byte by TestReadmeRules.
+*.md text eol=lf
