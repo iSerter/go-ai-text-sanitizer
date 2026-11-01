@@ -28,8 +28,10 @@ and LLM artifacts from text (Unicode %s tables).
 
 Usage:
   ai-text-sanitizer [flags] [file|dir ...]
+  ai-text-sanitizer serve [flags]   run the HTTP API (see serve --help)
 
 With no inputs (or "-"), reads stdin. Flags may appear before or after inputs.
+To process a file named "serve", pass it as ./serve.
 
 Modes:
   (default)        write sanitized text to stdout, or to -o FILE
@@ -53,6 +55,9 @@ type fileResult struct {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "serve" {
+		return runServe(args[1:], stderr)
+	}
 	var c config
 	fs := newFlagSet(&c)
 	fs.SetOutput(stderr)

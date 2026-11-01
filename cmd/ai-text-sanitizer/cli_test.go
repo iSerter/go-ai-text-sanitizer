@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 type result struct {
@@ -367,5 +369,36 @@ func TestDirectoryWalkSkipsInvalidUTF8(t *testing.T) {
 	r = runCLI(t, "", "--detect-only", filepath.Join(dir, "latin1.txt"))
 	if r.code != 1 {
 		t.Errorf("explicit file: %+v", r)
+	}
+}
+
+func TestServeFlags(t *testing.T) {
+	if r := runCLI(t, "", "serve", "--help"); r.code != 0 || !strings.Contains(r.stderr, "/sanitize") {
+		t.Errorf("--help: got %+v", r)
+	}
+	for _, args := range [][]string{
+		{"serve", "--nope"},
+		{"serve", "extra"},
+		{"serve", "--max-body", "0"},
+		{"serve", "--addr", "256.0.0.1:x"},
+	} {
+		if r := runCLI(t, "", args...); r.code != 1 {
+			t.Errorf("%v: got %+v", args, r)
+		}
+	}
+}
+
+func TestServeShutsDownOnSignal(t *testing.T) {
+	orig := serveCtx
+	defer func() { serveCtx = orig }()
+	serveCtx = func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(context.Background(), 100*time.Millisecond)
+	}
+	r := runCLI(t, "", "serve", "--addr", "127.0.0.1:0", "--api-key", "k")
+	if r.code != 0 || !strings.Contains(r.stderr, "listening on 127.0.0.1:") || !strings.Contains(r.stderr, "shutting down") {
+		t.Errorf("got %+v", r)
+	}
+	if strings.Contains(r.stderr, "warning") {
+		t.Errorf("warned despite API key: %s", r.stderr)
 	}
 }

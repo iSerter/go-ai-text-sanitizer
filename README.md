@@ -79,6 +79,45 @@ Exit code 1 means an error. Invalid UTF-8 input is an error by default; use `--i
 
 Flags given after `--preset` override it, e.g. `--preset plain --normalize-smart-quotes=false`.
 
+## HTTP API
+
+`ai-text-sanitizer serve` runs a small HTTP server (standard library only) for non-Go clients and shared deployments.
+
+```bash
+# Listens on :8080 (or :$PORT). Setting a key protects /sanitize.
+AI_TEXT_SANITIZER_API_KEY=secret ai-text-sanitizer serve --addr :8080
+
+curl localhost:8080/health
+# {"status":"ok","unicode":"18.0.0","version":"v1.2.3"}
+
+# JSON in, JSON out
+curl -H 'Authorization: Bearer secret' -H 'Content-Type: application/json' \
+  -d '{"text":"hi​there","preset":"plain"}' localhost:8080/sanitize
+# {"text":"hithere","report":{"modified":true,"risk":"low",...}}
+
+# Raw text body, options as query parameters
+curl -H 'X-API-Key: secret' --data-binary @draft.txt 'localhost:8080/sanitize?detect_only=1'
+```
+
+| Endpoint | Auth | Description |
+|---|---|---|
+| `GET /health` | never | Liveness probe with the version and Unicode version. |
+| `POST /sanitize` | when a key is set | Returns `{"text": ..., "report": ...}`; `text` is omitted for `detect_only`. |
+
+`POST /sanitize` accepts a JSON body (`Content-Type: application/json`) or any other body as the raw text:
+
+| JSON field | Query parameter | Meaning |
+|---|---|---|
+| `text` | *(the body)* | Text to sanitize (required). |
+| `preset` | `preset` | `safe`, `default`, `plain` or `paranoid`. |
+| `rules` | `rule` | Rule IDs to enable (see `--list-rules`); repeatable or comma-separated. |
+| `disable_rules` | `no_rule` | Rule IDs to disable. |
+| `detect_only` | `detect_only` | Report findings without modifying the text. |
+| `positions` | `positions` | Record up to n positions per finding. |
+| `invalid_utf8` | `invalid_utf8` | `error` (default, returns 400), `replace` or `drop`. |
+
+Authentication uses `Authorization: Bearer KEY` or `X-API-Key: KEY`, from `--api-key` or (preferably, so it stays out of `ps`) `$AI_TEXT_SANITIZER_API_KEY`. Without a key `/sanitize` is open and the server logs a warning. Errors are `{"error": "..."}` with status 400, 401, 405 or 413 (bodies over `--max-body`, default 10 MiB). The server applies read/write timeouts and shuts down gracefully on SIGINT/SIGTERM. Go programs can mount the same handler with `httpapi.New(httpapi.Config{...})`.
+
 ## Library
 
 ```go

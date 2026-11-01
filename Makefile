@@ -2,7 +2,7 @@ VERSION ?= dev
 LDFLAGS := -ldflags="-X main.version=$(VERSION)"
 FUZZTIME ?= 60s
 
-.PHONY: all build test race lint vet fmt bench fuzz generate golden clean run install release
+.PHONY: all build test race lint vet fmt bench fuzz generate golden clean run serve install release
 
 all: build
 
@@ -45,6 +45,9 @@ clean:
 
 run:
 	go run $(LDFLAGS) ./cmd/ai-text-sanitizer
+
+serve:
+	go run $(LDFLAGS) ./cmd/ai-text-sanitizer serve
 
 install:
 	go install $(LDFLAGS) ./cmd/ai-text-sanitizer
