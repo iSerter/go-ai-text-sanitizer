@@ -1,0 +1,15 @@
+## Setup
+
+Run the “installer” — it’s quick…
+
+```bash
+echo "“not touched” — ok"   
+
+
+
+ls --all   -l
+```
+
+Inline `a — b` stays. Visit https://example.com/a—b?utm_source=chatgpt.com or mail me@example.com.
+* item one
+* item **two**​

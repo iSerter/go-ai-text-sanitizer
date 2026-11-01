@@ -1,0 +1,2 @@
+go test fuzz v1
+string("00ی\u200c\u200d")

@@ -1,0 +1,13 @@
+Revenue grew 12% [cite: 2, 6].
+[cite_start]Margins improved in Q3.
+[span_1](start_span)Costs fell[span_1](end_span) sharply.
+Paris is the capital of France[web:1][web:3].
+Per the uploaded report [attached_file:1], sales grew.
+Fact <grok-card data-id="e8ff4f" data-type="citation_card"></grok-card> confirmed.
+Also [](grok_render_citation_card_json={"cardIds":["3bb883"]}) noted.
+^[The sky is blue.]({"attribution":{"attributableIndex":"1009-1"}})
+:::writing{variant="email" id="51234"}
+Hi team,
+Please review.
+:::
+Coverage was thorough Wikipedia+1 and IT Governance+3ISO+3.

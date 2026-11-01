@@ -24,219 +24,101 @@ Inspired by:
 
 ## 3. Non-Goals
 
+- **Rewriting, paraphrasing or "humanizing".** The sanitizer never calls a model, never substitutes words or phrases, and never randomizes output. Same input + same options ⇒ same output.
 - Defeating SynthID, green-list statistical watermarks, or neural AI detectors (these operate on token-level statistics, not string-level artifacts).
-- Parsing HTML/XML structure (operates on raw text).
+- Parsing HTML/XML structure (operates on raw text; Markdown code spans and URLs are recognized only so they can be protected).
 - Handling C2PA or file-metadata content credentials.
 - Running as a service/daemon (CLI + library only).
 
 ## 4. Library API
 
-### 4.1 Core Function
+The authoritative reference is the package documentation (`go doc ./aisanitizer`). Summary:
 
-```go
-package aisanitizer
+### 4.1 Options, presets and rules
 
-type Options struct {
-    RemoveZeroWidth        bool  // ZWSP, ZWNJ, ZWJ, Word Joiner, BOM
-    RemoveBidi             bool  // Bidirectional marks/controls
-    RemoveInvisibleMath    bool  // Invisible operators (U+2061–2064)
-    RemoveVariationSelectors bool // U+FE00–FE0F, U+E0100–E01EF
-    RemoveTagChars         bool  // Unicode tags block U+E0000–E007F
-    RemoveFormatChars      bool  // Soft hyphen, CGJ, Hangul fillers, interlinear, musical
-    RemoveBrailleBlank     bool  // U+2800 BRAILLE PATTERN BLANK
-    StripControl           bool  // C0/C1 controls (keeps TAB, LF, CR)
-    RemoveCitations        bool  // (oaicite:N){index=N} placeholders
-    RemoveModelArtifacts   bool  // Visible model annotation envelopes
-    NormalizeSpaces        bool  // Unusual spaces → U+0020
-    NormalizeLineSeparators bool // U+2028 → \n, U+2029 → \n\n
-    NormalizeSmartQuotes   bool  // Curly/angle quotes → straight ' "
-    NormalizeDashes        bool  // En/em dashes, minus → -
-    NormalizeEllipsis      bool  // U+2026 → ...
-    CollapseWhitespace     bool  // Runs of spaces → one, trim line-end spaces
-    Trim                  bool  // Trim leading/trailing whitespace
-    KeepEmoji              bool  // Preserve ZWJ/Variation selectors in emoji sequences
-    KeepBidi               bool  // Override: allow bidi marks to survive
-    KeepTabs               bool  // Preserve horizontal tabs
-    KeepNewlines           bool  // Preserve \n/\r
-    Nfkc                   bool  // Apply NFKC normalization (default: NFC)
-}
-
-type Report struct {
-    Modified bool
-    Changes  ChangeStats
-    Findings []Finding
-}
-
-type ChangeStats struct {
-    RemovedZeroWidth        int
-    RemovedBidi             int
-    RemovedInvisibleMath    int
-    RemovedVariationSelectors int
-    RemovedTagChars         int
-    RemovedFormatChars      int
-    RemovedBrailleBlank     int
-    RemovedControl          int
-    RemovedCitations        int
-    RemovedModelArtifacts   int
-    NormalizedSpaces        int
-    NormalizedLineSeparators int
-    NormalizedSmartQuotes   int
-    NormalizedDashes        int
-    NormalizedEllipsis      int
-    CollapsedSpaces         int
-    RewrittenSegments       int
-    Total                   int
-}
-
-type Finding struct {
-    Category string // e.g. "zero_width", "tag_char", "bidi"
-    Name     string // e.g. "ZERO WIDTH SPACE"
-    Notation string // e.g. "U+200B"
-    CodePoint rune
-    Index    int
-    Count    int
-}
-```
+- `Options` holds boolean switches per rule group (`RemoveZeroWidth`, `RemoveCitations`, `NormalizeSmartQuotes`, `FoldCompatibility`, `StripMarkdown`, …), the policy knobs (`DashStyle`, `BidiMode`, `InvalidUTF8`, `MaxBlankLines`, `MaxPositions`), the preservation switches (`KeepEmoji`, `KeepScriptFormatting`, `KeepTabs`, `KeepNewlines`, `KeepFrenchSpacing`) and a `Rules map[RuleID]bool` override.
+- `Defaults()` removes invisible characters and model artifacts without changing visible typography. `Preset(name)` returns `safe`, `default`, `plain` or `paranoid`.
+- Every rule has a stable `RuleID` (`Rules()`, `LookupRule()`, `Options.SetRule()`), a category (`invisible`, `whitespace`, `artifact`, `typography`, `homoglyph`, `steganography`, `encoding`) and an action (`remove`, `replace`, `detect`).
+- Deprecated aliases kept for compatibility: `Nfkc` (→ `FoldCompatibility`), `NormalizeDashes` (→ `DashStyle=DashHyphen`), `KeepBidi` (→ `BidiMode=BidiKeep`).
 
 ### 4.2 Sanitize
 
 ```go
-// Sanitize cleans text and returns the result with a change report.
 func Sanitize(text string, opts *Options) (string, *Report)
-
-// MustSanitize is like Sanitize but panics on error (never in practice).
-func MustSanitize(text string, opts *Options) (string, *Report)
-
-// Defaults returns an Options with all safe defaults pre-set.
-func Defaults() *Options
+func CleanText(text string) (string, *Report)                 // Defaults()
+func SanitizeBytes(b []byte, opts *Options) ([]byte, *Report)
+func SanitizeReader(r io.Reader, w io.Writer, opts *Options) (*Report, error)
+func CheckUTF8(text string) error                              // *InvalidUTF8Error
+func Reveal(text string) string                                // "a⟨U+200B⟩b"
 ```
+
+Guarantees: output is valid UTF-8; `Sanitize` is idempotent; unchanged input is returned without copying.
 
 ### 4.3 Detect Only (Read-Only)
 
 ```go
-// Detect runs detectors without mutating text, returns findings.
 func Detect(text string, opts *Options) (*Report, error)
 ```
 
-### 4.4 Detectors
+Reports exactly what `Sanitize` would change, plus detect-only findings: decoded steganographic payloads (tag characters, variation selectors, invisible operators, zero-width runs, trailing whitespace), mixed-script/homoglyph words, private-use and replacement characters, and ChatGPT "source pills".
 
-Built-in detectors (read-only heuristic scans):
+### 4.4 Report
 
-- **HeuristicDetector** — counts zero-width marks, exotic spaces, tag payloads, variation selectors, model artifacts.
-- Extensible via `Detector` interface:
+`Report{Modified, Risk, Changes ChangeStats, Findings []Finding}`; JSON field names are snake_case. A `Finding` carries `Rule`, `Category`, `Action`, `Name`, `Notation`, `CodePoint`, `Index` (byte offset of the first occurrence in the original input), `Count`, `Payload` and optional `Positions` (offset/line/column). Helpers: `HasFindings`, `HasWatermarks`, `Count(rule)`, `Summary`, `String`, `Merge`.
 
-```go
-type Detector interface {
-    Name() string
-    Detect(text string) ([]Finding, error)
-}
-```
+### 4.5 Detectors
 
-### 4.5 Rewrite Strategies (Opt-In)
+`Detector` (`Name()`, `Detect(text) ([]Finding, error)`) is the extension point; register custom detectors via `Options.ExtraDetectors`. `HeuristicDetector` exposes the built-in rules as a `Detector`.
 
-```go
-type RewriteStrategy int
+### 4.6 Rewrite strategies (removed)
 
-const (
-    RewriteNone       RewriteStrategy = iota
-    RewriteLight      // Flip quotes, re-chunk sentences
-    RewriteAggressive // Light + synonym substitution
-)
-```
-
-```go
-// SanitizeWithRewrite cleans text and applies optional deterministic rewrites.
-func SanitizeWithRewrite(text string, opts *Options, strategy RewriteStrategy) (string, *Report, error)
-```
-
-### 4.6 Convenience
-
-```go
-// CleanText applies default sanitization in one call (equivalent to the PHP library's static method).
-func CleanText(text string) (string, *Report)
-```
+`SanitizeWithRewrite` and `RewriteStrategy` remain only as deprecated no-op shims and will be deleted. Rewriting changed meaning and *added* typographic AI footprints (curly quotes, "utilize", "moreover").
 
 ## 5. CLI Usage
 
 ```
-Usage: ai-text-sanitizer [flags] [input-file]
+ai-text-sanitizer [flags] [file|dir ...]     # flags may appear anywhere
 
-Flags:
-  -o, --out string       Output file (default: stdout)
-  -r, --report string    Write JSON report to file
-  -d, --detect-only      Only detect, don't modify (exit code 2 if findings)
-  -s, --strict           Exit code 2 if text was modified or findings detected
-  -i, --in-place         Modify file in-place (creates .bak backup)
-      --pretty           Human-readable report to stderr
-      --rewrite string   Rewrite strategy: none, light, aggressive (default: none)
-
-  # Toggle individual sanitization rules
-      --[no-]remove-zero-width
-      --[no-]remove-bidi
-      --[no-]remove-variation-selectors
-      --[no-]remove-tag-chars
-      --[no-]remove-citations
-      --[no-]normalize-smart-quotes
-      --[no-]normalize-dashes
-      --[no-]collapse-whitespace
-      --nfkc
-      --trim
-
-  -h, --help             Show help
-  -v, --version          Show version
+Modes:      (default) stdout or -o FILE | -i/--in-place | -d/--detect-only | --check | --diff
+Reporting:  -r/--report FILE, --format text|json|sarif, --pretty, --positions N, -s/--strict
+Rules:      --preset safe|default|plain|paranoid, --rule ID, --no-rule ID, --list-rules,
+            --normalize-smart-quotes, --dash-style keep|hyphen|ascii|comma, --normalize-ellipsis,
+            --normalize-punctuation, --fold-compat, --fold-confusables, --strip-markdown,
+            --remove-boilerplate, --remove-numeric-citations, --remove-private-use,
+            --collapse-whitespace, --max-blank-lines N, --trim, --keep-french-spacing,
+            --bidi auto|keep|remove, --no-keep-emoji, --no-keep-script-formatting, --no-* (defaults)
+Input:      --invalid-utf8 error|replace|drop, --include GLOB, --exclude GLOB
 ```
 
-### Examples
-
-```bash
-# Sanitize a file, write cleaned result
-ai-text-sanitizer draft.txt -o draft_clean.txt
-
-# Detect only, exit 2 if watermarks found (CI gate)
-ai-text-sanitizer draft.txt --detect-only --strict
-
-# Pipe support
-cat draft.txt | ai-text-sanitizer --report report.json > clean.txt
-
-# In-place cleaning with backup
-ai-text-sanitizer --in-place draft.txt
-
-# Full normalization
-ai-text-sanitizer --normalize-smart-quotes --normalize-dashes --nfkc --trim input.txt
-```
+See README.md for examples.
 
 ### Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| 0    | Success, no changes |
-| 1    | Error (file not found, invalid UTF-8, etc.) |
-| 2    | Changes made or findings detected (with `--strict`) |
+| 0    | Success |
+| 1    | Error (file not found, invalid UTF-8 with the default policy, bad flags, …) |
+| 2    | Findings (`--detect-only`), files that would change (`--check`), or changes/findings with `--strict` |
 
 ## 6. Architecture
 
 ```
 go-ai-text-sanitizer/
-├── cmd/
-│   └── ai-text-sanitizer/
-│       └── main.go           # CLI entry point
+├── cmd/ai-text-sanitizer/   # CLI: flags.go, cli.go (modes, files, atomic writes), diff.go, sarif.go
 ├── aisanitizer/
-│   ├── sanitizer.go          # Core Sanitize/Detect logic
-│   ├── options.go            # Options struct + Defaults()
-│   ├── report.go             # Report, ChangeStats, Finding types
-│   ├── unicode.go            # Unicode category tables & helpers
-│   ├── patterns.go           # Regex patterns for citations, artifacts
-│   ├── normalize.go          # Typography normalization (quotes, dashes, etc.)
-│   ├── spaces.go             # Whitespace folding & collapsing
-│   ├── rewrite.go            # Deterministic rewrite strategies
-│   ├── detect.go             # Heuristic detector implementation
-│   └── detect_test.go        # Tests
-├── go.mod
-├── go.sum
-├── Makefile
-├── PRD.md
-├── README.md
-└── LICENSE
+│   ├── rules.go             # rule registry (IDs, categories, defaults, option bindings)
+│   ├── options.go           # Options, presets, enums
+│   ├── sanitizer.go         # public API + stage pipeline
+│   ├── engine.go            # single-pass character engine (+ context rules)
+│   ├── artifacts.go         # LLM artifact patterns, tracking parameters
+│   ├── boilerplate.go, markdown.go, typography.go, whitespace.go
+│   ├── stego.go             # payload decoders (detect-only)
+│   ├── regions.go           # protected regions (code spans, URLs, e-mails)
+│   ├── rewriter.go          # copy-on-write builder with offset maps
+│   ├── report.go, names.go, reveal.go, detect.go
+│   ├── tables_gen.go        # generated from the Unicode Character Database
+│   └── testdata/            # golden corpus, emoji-test sequences, fuzz regressions
+└── internal/ucdgen/         # table generator (go generate ./aisanitizer)
 ```
 
 ### Processing Pipeline
@@ -244,77 +126,72 @@ go-ai-text-sanitizer/
 ```
 Input Text
   │
-  ├─ 1. Detect-only pass (if requested) → collect Findings
+  ├─ 1. Character engine (single pass, copy-on-write)
+  │    ├── invalid UTF-8 → U+FFFD or dropped
+  │    ├── HTML entities that encode invisible characters
+  │    ├── ANSI escape sequences, C0/C1 controls
+  │    ├── zero-width, bidi, invisible math, variation selectors, tags,
+  │    │   other default-ignorables, braille blank, noncharacters, private use (opt-in)
+  │    │   — with context rules for emoji, Indic/Arabic joiners, Mongolian,
+  │    │     Hangul, standardized/ideographic variation sequences, RTL marks
+  │    └── unusual spaces → U+0020, line/paragraph separators → \n
   │
-  ├─ 2. NFKC/NF normalization (optional)
+  ├─ 2. Post-character stages, repeated until stable (code spans protected)
+  │    ├── LLM artifacts (citations, canvas wrappers, tracking parameters)
+  │    ├── chat boilerplate (opt-in), Markdown stripping (opt-in)
+  │    ├── typography: quotes, dashes, ellipsis, punctuation, compatibility folding (opt-in; URLs protected)
+  │    ├── homoglyph folding (opt-in) / mixed-script detection
+  │    └── whitespace collapsing and trimming (opt-in)
   │
-  ├─ 3. Remove invisible characters
-  │    ├── Zero-width chars (U+200B–200D, U+2060, U+FEFF)
-  │    ├── Bidi controls (U+200E/200F, U+202A–202E, U+2066–2069, U+061C)
-  │    ├── Variation selectors (U+FE00–FE0F, U+E0100–E01EF)
-  │    ├── Tags block (U+E0000–E007F)
-  │    ├── Invisible math operators (U+2061–2064)
-  │    ├── Other format chars (soft hyphen, CGJ, fillers, musical, shorthand)
-  │    ├── Braille blank (U+2800)
-  │    └── Stray C0/C1 controls (optional, keeps TAB/LF/CR)
+  ├─ 3. Steganography analyzers on the original input (detect-only findings)
   │
-  ├─ 4. Strip visible model artifacts
-  │    ├── Citation placeholders (oaicite, etc.)
-  │    └── Model annotation envelopes
-  │
-  ├─ 5. Normalize typography
-  │    ├── Smart quotes → straight
-  │    ├── Dashes/minus → -
-  │    └── Ellipsis → ...
-  │
-  ├─ 6. Normalize whitespace
-  │    ├── Unusual spaces → U+0020
-  │    ├── Line/paragraph separators → \n
-  │    └── Collapse runs (optional)
-  │
-  ├─ 7. Apply rewrite strategy (optional)
-  │
-  └─ 8. Return cleaned text + Report
+  └─ 4. Cleaned text + Report (offsets mapped back to the original input)
 ```
 
 ## 7. Unicode Coverage
 
+Tables are generated from Unicode 18.0.0 (`UnicodeVersion`). Every `Default_Ignorable_Code_Point` is handled by an invisible-character rule (enforced by a test).
+
 | Category | Code Points | Example |
 |----------|------------|---------|
 | Zero-width | U+200B–200D, U+2060, U+FEFF | ZWSP, ZWNJ, ZWJ, Word Joiner, BOM |
-| Bidi controls | U+200E/200F, U+202A–202E, U+2066–2069, U+061C | LRM, RLM, LRE, RLE, PDF, LRI, RLI, FSI, ALM |
-| Variation selectors | U+FE00–FE0F, U+E0100–E01EF | VS1–VS16, VS17–VS256 |
-| Tags block | U+E0000–E007F | Language tags (steganographic payload) |
+| Bidi controls | U+061C, U+200E/200F, U+202A–202E, U+2066–2069 | ALM, LRM, RLM, LRE…RLO, LRI…PDI |
+| Variation selectors | U+FE00–FE0F, U+E0100–E01EF | VS1–VS256 |
+| Tags block | U+E0000–E007F | ASCII smuggling payloads |
 | Invisible math | U+2061–2064 | FUNCTION APPLICATION, INVISIBLE TIMES/SEPARATOR/PLUS |
-| Format chars | U+00AD, U+034F, U+115F–1160, U+17B4–17B5, U+180B–180D, U+200F, U+3164, U+FFA0, U+FE00–FE0F, U+1D159, U+1D173–1D17A, U+1FFFE–1FFFF, U+E0001, U+E0020–E007F, U+E0100–E01EF | Soft hyphen, CGJ, Hangul fillers, Khmer/Kayah Li, Mongolian, interlinear, musical |
+| Other format/default-ignorable | U+00AD, U+034F, U+115F–1160, U+17B4–17B5, U+180B–180F, U+2065, U+206A–206F, U+3164, U+FFA0, U+FFF0–FFFC, U+1BCA0–1BCA3, U+1D159, U+1D173–1D17A, U+E0080–E0FFF | Soft hyphen, CGJ, Hangul fillers, Mongolian selectors, deprecated format controls, interlinear annotation, object replacement, shorthand format controls |
 | Braille blank | U+2800 | BRAILLE PATTERN BLANK |
-| Control chars | U+0000–001F (excl. 09/0A/0D), U+007F–009F | C0/C1 controls |
-| Exotic spaces | U+00A0, U+1680, U+2000–200A, U+202F, U+205F, U+3000, U+180E | NBSP, Ogham, en/em/thin/hair spaces, NNBSP, MPS, ideographic, Mongolian vowel |
-| Smart quotes | U+2018–201F, U+2039–203A, U+00AB, U+00BB | Curly single/double, guillemets |
-| Dashes | U+2010–2015, U+2212 | Hyphen, en-dash, em-dash, horizontal bar, minus |
-| Ellipsis | U+2026 | HORIZONTAL ELLIPSIS |
-| Line/paragraph separators | U+2028, U+2029 | LINE SEPARATOR, PARAGRAPH SEPARATOR |
+| Noncharacters | U+FDD0–FDEF, U+xFFFE/xFFFF | — |
+| Private use (opt-in) | U+E000–F8FF, planes 15–16 | ChatGPT U+E200–E202 citation wrappers are removed as artifacts |
+| Control chars | U+0000–001F (excl. 09/0A/0D), U+007F–009F (excl. U+0085), ANSI escapes | C0/C1 controls |
+| Exotic spaces | U+00A0, U+1680, U+2000–200A, U+202F, U+205F, U+3000 | NBSP, en/em/thin/hair spaces, NNBSP, ideographic |
+| Line separators | U+2028, U+2029, U+0085 | LINE/PARAGRAPH SEPARATOR, NEL |
+| Smart quotes (opt-in) | U+2018–201F, U+2039–203A, U+00AB, U+00BB, U+02BC, U+FF02, U+FF07 | Curly quotes, guillemets |
+| Dashes (opt-in) | U+2010–2015, U+2212, U+FE58, U+FE63, U+FF0D | Hyphen, en/em dash, minus |
+| Compatibility (opt-in) | `<compat>`, `<font>`, `<wide>`, `<super>`, `<circle>`, `<fraction>`, … decompositions | ﬁ, Ａ, 𝐀, ², ①, ½ |
+| Confusables (opt-in fold, detect by default) | Cyrillic/Greek/Armenian/Cherokee/Coptic/Lisu → Latin (UTS #39) | Cyrillic а in "pаypal" |
 
 ## 8. Testing Strategy
 
 - **Unit tests** for each sanitization rule (individual Unicode categories)
-- **Integration tests** with realistic LLM output samples (ChatGPT, Claude, Gemini, etc.)
+- **Golden tests** (`aisanitizer/testdata/golden`) with realistic LLM output samples (ChatGPT, Gemini, Perplexity, Grok, etc.), expected outputs and expected reports
+- **Fuzz tests** (idempotency, valid UTF-8 output, Detect/Sanitize agreement, offsets in range)
 - **Regression tests** for known watermark patterns from major providers
 - **Emoji handling tests** (ensure ZWJ sequences like 👨‍👩‍👧‍👦 survive with `KeepEmoji`)
-- **RTL/Bidi tests** (Persian, Arabic, Hebrew with `KeepBidi` enabled)
+- **Script tests** (Persian/Kurdish/Indic joiners, Arabic/Hebrew bidi marks, Mongolian, Hangul, CJK variation sequences, French spacing) with default options
 - **CLI tests** — pipe/stdin, file I/O, exit codes, `--strict` behavior
 - **Benchmarks** for throughput (MB/s)
 
 ## 9. Performance Targets
 
-- **Throughput:** ≥ 50 MB/s for default options on modern hardware
-- **Memory:** O(n) relative to input size; minimize allocations in hot paths
+- **Throughput:** ≥ 50 MB/s for default options on mixed text (currently ~200–480 MB/s on clean text, ~70 MB/s on worst-case dirty text)
+- **Memory:** O(n) relative to input size; 2 allocations per call when the input is unchanged
 - **Startup time:** Sub-millisecond (no external dependencies, no heavy init)
 
 ## 10. Releases & Versioning
 
 - **Semantic Versioning** (v1.0.0+)
-- **Binary releases** via GoReleaser for macOS (amd64/arm64), Linux (amd64/arm64), Windows (amd64)
+- **Binary releases** via GoReleaser for macOS, Linux and Windows (amd64/arm64), with checksums and SBOMs
 - **Homebrew tap** (optional)
 
 ## 11. Future Considerations (Post-v1)
@@ -323,4 +200,4 @@ Input Text
 - SynthID bridging adapter
 - Integration with `chardet`-like encoding detection for non-UTF-8 inputs
 - WASM build for browser use
-- GitHub Action for CI gates
+- (Done) GitHub Action and pre-commit hooks for CI gates

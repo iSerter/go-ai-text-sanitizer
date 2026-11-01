@@ -1,0 +1,285 @@
+{
+  "modified": false,
+  "risk": "low",
+  "changes": {
+    "removed_zero_width": 0,
+    "removed_bidi": 0,
+    "removed_invisible_math": 0,
+    "removed_variation_selectors": 0,
+    "removed_tag_chars": 0,
+    "removed_format_chars": 0,
+    "removed_braille_blank": 0,
+    "removed_noncharacters": 0,
+    "removed_private_use": 0,
+    "removed_control": 0,
+    "removed_ansi_escapes": 0,
+    "removed_html_entities": 0,
+    "removed_citations": 0,
+    "removed_model_artifacts": 0,
+    "removed_tracking_params": 0,
+    "removed_boilerplate": 0,
+    "stripped_markdown": 0,
+    "normalized_spaces": 0,
+    "normalized_line_separators": 0,
+    "normalized_smart_quotes": 0,
+    "normalized_dashes": 0,
+    "normalized_ellipsis": 0,
+    "normalized_punctuation": 0,
+    "folded_compatibility": 0,
+    "folded_confusables": 0,
+    "collapsed_spaces": 0,
+    "trimmed_whitespace": 0,
+    "replaced_invalid_utf8": 0,
+    "total": 0
+  },
+  "findings": [
+    {
+      "rule": "exotic_space",
+      "category": "whitespace",
+      "action": "replace",
+      "name": "NARROW NO-BREAK SPACE",
+      "notation": "U+202F",
+      "code_point": 8239,
+      "index": 39,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 39,
+          "line": 1,
+          "column": 40
+        }
+      ]
+    },
+    {
+      "rule": "artifact.lenticular_citation",
+      "category": "artifact",
+      "action": "remove",
+      "name": "LENTICULAR CITATION",
+      "notation": "【4:0†source】",
+      "index": 50,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 50,
+          "line": 1,
+          "column": 49
+        }
+      ]
+    },
+    {
+      "rule": "artifact.content_reference",
+      "category": "artifact",
+      "action": "remove",
+      "name": "CHATGPT CONTENT REFERENCE",
+      "notation": ":contentReference[oaicite:0]{index=0}",
+      "index": 99,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 99,
+          "line": 2,
+          "column": 30
+        }
+      ]
+    },
+    {
+      "rule": "exotic_space",
+      "category": "whitespace",
+      "action": "replace",
+      "name": "NO-BREAK SPACE",
+      "notation": "U+00A0",
+      "code_point": 160,
+      "index": 144,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 144,
+          "line": 2,
+          "column": 75
+        }
+      ]
+    },
+    {
+      "rule": "artifact.oaicite",
+      "category": "artifact",
+      "action": "remove",
+      "name": "CHATGPT OAICITE PLACEHOLDER",
+      "notation": "(oaicite:1){index=1}",
+      "index": 158,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 158,
+          "line": 2,
+          "column": 88
+        }
+      ]
+    },
+    {
+      "rule": "artifact.turn_citation",
+      "category": "artifact",
+      "action": "remove",
+      "name": "CHATGPT TURN CITATION TOKEN",
+      "notation": "citeturn0search2turn0news1",
+      "index": 217,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 217,
+          "line": 3,
+          "column": 38
+        }
+      ]
+    },
+    {
+      "rule": "artifact.pua_citation",
+      "category": "artifact",
+      "action": "remove",
+      "name": "CHATGPT PRIVATE-USE CITATION",
+      "notation": "citeturn0search5",
+      "index": 267,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 267,
+          "line": 4,
+          "column": 24
+        }
+      ]
+    },
+    {
+      "rule": "private_use",
+      "category": "invisible",
+      "action": "detect",
+      "name": "PRIVATE USE CHARACTER",
+      "notation": "U+E200",
+      "code_point": 57856,
+      "index": 267,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 267,
+          "line": 4,
+          "column": 24
+        }
+      ]
+    },
+    {
+      "rule": "private_use",
+      "category": "invisible",
+      "action": "detect",
+      "name": "PRIVATE USE CHARACTER",
+      "notation": "U+E202",
+      "code_point": 57858,
+      "index": 274,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 274,
+          "line": 4,
+          "column": 29
+        }
+      ]
+    },
+    {
+      "rule": "private_use",
+      "category": "invisible",
+      "action": "detect",
+      "name": "PRIVATE USE CHARACTER",
+      "notation": "U+E201",
+      "code_point": 57857,
+      "index": 289,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 289,
+          "line": 4,
+          "column": 42
+        }
+      ]
+    },
+    {
+      "rule": "artifact.oai_citation",
+      "category": "artifact",
+      "action": "remove",
+      "name": "CHATGPT OAI_CITATION LINK",
+      "notation": "[oai_citation:2‡reuters.com](https://www.reuters.com/marke…",
+      "index": 302,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 302,
+          "line": 5,
+          "column": 9
+        }
+      ]
+    },
+    {
+      "rule": "artifact.tracking_param",
+      "category": "artifact",
+      "action": "replace",
+      "name": "AI REFERRAL PARAMETER",
+      "notation": "https://www.ecb.europa.eu/press/pr/date/2026/html/index.en.h…",
+      "index": 394,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 394,
+          "line": 5,
+          "column": 99
+        }
+      ]
+    },
+    {
+      "rule": "zero_width",
+      "category": "invisible",
+      "action": "remove",
+      "name": "ZERO WIDTH SPACE",
+      "notation": "U+200B",
+      "code_point": 8203,
+      "index": 485,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 485,
+          "line": 6,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "rule": "zero_width",
+      "category": "invisible",
+      "action": "remove",
+      "name": "WORD JOINER",
+      "notation": "U+2060",
+      "code_point": 8288,
+      "index": 495,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 495,
+          "line": 6,
+          "column": 13
+        }
+      ]
+    },
+    {
+      "rule": "zero_width",
+      "category": "invisible",
+      "action": "remove",
+      "name": "ZERO WIDTH NO-BREAK SPACE",
+      "notation": "U+FEFF",
+      "code_point": 65279,
+      "index": 506,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 506,
+          "line": 6,
+          "column": 22
+        }
+      ]
+    }
+  ]
+}

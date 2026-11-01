@@ -1,323 +1,283 @@
 package aisanitizer
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"strings"
+	"unicode/utf8"
 )
 
+// Sanitize cleans text according to opts (Defaults() when nil) and returns
+// the result with a report of every change. Unchanged input is returned
+// without copying. The result is always valid UTF-8.
 func Sanitize(text string, opts *Options) (string, *Report) {
 	if opts == nil {
 		opts = Defaults()
 	}
-
-	report := &Report{}
-	original := text
-	current := text
-
-	if opts.Nfkc {
-		current = nfkcNormalize(current)
+	p := newPipeline(text, opts, false)
+	out := p.run()
+	if p.sawTags || p.sawVS || p.sawMath || p.sawZW {
+		p.analyzeStego()
 	}
-
-	protected := emojiProtectedSet(current, opts)
-
-	var n int
-
-	if opts.RemoveZeroWidth {
-		current, n = removeCategory(current, isZeroWidth, protected)
-		report.Changes.RemovedZeroWidth += n
-	}
-	if opts.RemoveBidi && !opts.KeepBidi {
-		current, n = removeCategory(current, isBidi, protected)
-		report.Changes.RemovedBidi += n
-	}
-	if opts.RemoveInvisibleMath {
-		current, n = removeCategory(current, isInvisibleMath, protected)
-		report.Changes.RemovedInvisibleMath += n
-	}
-	if opts.RemoveVariationSelectors {
-		vsFn := isVariationSelector
-		if opts.KeepEmoji {
-			vsFn = func(r rune) bool {
-				if isEmojiExtendedPictographic(r) {
-					return false
-				}
-				return isVariationSelector(r)
-			}
-		}
-		current, n = removeCategory(current, vsFn, protected)
-		report.Changes.RemovedVariationSelectors += n
-	}
-	if opts.RemoveTagChars {
-		current, n = removeCategory(current, isTagChar, protected)
-		report.Changes.RemovedTagChars += n
-	}
-	if opts.RemoveFormatChars {
-		current, n = removeCategory(current, isFormatChar, protected)
-		report.Changes.RemovedFormatChars += n
-	}
-	if opts.RemoveBrailleBlank {
-		current, n = removeCategory(current, isBrailleBlank, protected)
-		report.Changes.RemovedBrailleBlank += n
-	}
-	if opts.StripControl {
-		ctrlFn := isControl
-		if !opts.KeepTabs || !opts.KeepNewlines {
-			ctrlFn = func(r rune) bool {
-				if r == '\t' && opts.KeepTabs {
-					return false
-				}
-				if (r == '\n' || r == '\r') && opts.KeepNewlines {
-					return false
-				}
-				return isControl(r)
-			}
-		}
-		current, n = removeCategory(current, ctrlFn, protected)
-		report.Changes.RemovedControl += n
-	}
-
-	if opts.RemoveCitations {
-		current, n = removeCitations(current)
-		report.Changes.RemovedCitations += n
-	}
-	if opts.RemoveModelArtifacts {
-	}
-
-	if opts.NormalizeSmartQuotes {
-		current, n = normalizeSmartQuotes(current)
-		report.Changes.NormalizedSmartQuotes += n
-	}
-	if opts.NormalizeDashes {
-		current, n = normalizeDashes(current)
-		report.Changes.NormalizedDashes += n
-	}
-	if opts.NormalizeEllipsis {
-		current, n = normalizeEllipsis(current)
-		report.Changes.NormalizedEllipsis += n
-	}
-
-	if opts.NormalizeSpaces {
-		current, n = normalizeSpaces(current)
-		report.Changes.NormalizedSpaces += n
-	}
-	if opts.NormalizeLineSeparators {
-		current, n = normalizeLineSeparators(current)
-		report.Changes.NormalizedLineSeparators += n
-	}
-	if opts.CollapseWhitespace {
-		current, n = collapseWhitespace(current)
-		report.Changes.CollapsedSpaces += n
-	}
-	if opts.Trim {
-		current = trimSpace(current)
-	}
-
-	report.Changes.Total = report.Changes.RemovedZeroWidth +
-		report.Changes.RemovedBidi +
-		report.Changes.RemovedInvisibleMath +
-		report.Changes.RemovedVariationSelectors +
-		report.Changes.RemovedTagChars +
-		report.Changes.RemovedFormatChars +
-		report.Changes.RemovedBrailleBlank +
-		report.Changes.RemovedControl +
-		report.Changes.RemovedCitations +
-		report.Changes.RemovedModelArtifacts +
-		report.Changes.NormalizedSpaces +
-		report.Changes.NormalizedLineSeparators +
-		report.Changes.NormalizedSmartQuotes +
-		report.Changes.NormalizedDashes +
-		report.Changes.NormalizedEllipsis +
-		report.Changes.CollapsedSpaces +
-		report.Changes.RewrittenSegments
-
-	report.Modified = report.Changes.Total > 0 || current != original
-
-	return current, report
+	report := &Report{Modified: out != text}
+	p.col.build(text, report)
+	report.Risk = assessRisk(report.Findings)
+	return out, report
 }
 
-func SanitizeWithRewrite(text string, opts *Options, strategy RewriteStrategy) (string, *Report, error) {
-	cleaned, report := Sanitize(text, opts)
-	if strategy != RewriteNone {
-		rewritten, n := applyRewrite(cleaned, strategy)
-		report.Changes.RewrittenSegments += n
-		report.Changes.Total += n
-		report.Modified = true
-		cleaned = rewritten
-	}
-	return cleaned, report, nil
-}
-
-func Detect(text string, opts *Options) (*Report, error) {
-	detector := NewHeuristicDetector()
-	findings, err := detector.Detect(text)
-	if err != nil {
-		return nil, err
-	}
-	return &Report{
-		Findings: findings,
-		Modified: false,
-	}, nil
-}
-
+// CleanText sanitizes text with Defaults().
 func CleanText(text string) (string, *Report) {
 	return Sanitize(text, Defaults())
 }
 
-func nfkcNormalize(s string) string {
-	return strings.Map(func(r rune) rune {
-		if compat, ok := nfkcCompat[r]; ok {
-			return compat
-		}
-		if nfkcDrop[r] {
-			return -1
-		}
-		return r
-	}, s)
+// SanitizeBytes is Sanitize for byte slices.
+func SanitizeBytes(b []byte, opts *Options) ([]byte, *Report) {
+	out, report := Sanitize(string(b), opts)
+	return []byte(out), report
 }
 
-var nfkcDrop = map[rune]bool{
-	0xFE00: true, 0xFE01: true, 0xFE02: true, 0xFE03: true,
-	0xFE04: true, 0xFE05: true, 0xFE06: true, 0xFE07: true,
-	0xFE08: true, 0xFE09: true, 0xFE0A: true, 0xFE0B: true,
-	0xFE0C: true, 0xFE0D: true, 0xFE0E: true, 0xFE0F: true,
+// SanitizeReader reads all of r, sanitizes it and writes the result to w.
+// The whole input is buffered in memory.
+func SanitizeReader(r io.Reader, w io.Writer, opts *Options) (*Report, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	out, report := Sanitize(string(data), opts)
+	if _, err := io.WriteString(w, out); err != nil {
+		return report, err
+	}
+	return report, nil
 }
 
-var nfkcCompat = map[rune]rune{
-	0x00A0: ' ',
-	0x00AD: '-',
-	0x2000: ' ',
-	0x2001: ' ',
-	0x2002: ' ',
-	0x2003: ' ',
-	0x2004: ' ',
-	0x2005: ' ',
-	0x2006: ' ',
-	0x2007: ' ',
-	0x2008: ' ',
-	0x2009: ' ',
-	0x200A: ' ',
-	0x2010: '-',
-	0x2011: '-',
-	0x2012: '-',
-	0x2013: '-',
-	0x2014: '-',
-	0x2015: '-',
-	0x2018: '\'',
-	0x2019: '\'',
-	0x201A: '\'',
-	0x201B: '\'',
-	0x201C: '"',
-	0x201D: '"',
-	0x201E: '"',
-	0x201F: '"',
-	0x2024: '.',
-	0x2025: '.',
-	0x2026: '.',
-	0x202F: ' ',
-	0x2039: '<',
-	0x203A: '>',
-	0x2044: '/',
-	0x205F: ' ',
-	0x2060: ' ',
-	0x2212: '-',
-	0x3000: ' ',
-	0xFF01: '!',
-	0xFF02: '"',
-	0xFF03: '#',
-	0xFF04: '$',
-	0xFF05: '%',
-	0xFF06: '&',
-	0xFF07: '\'',
-	0xFF08: '(',
-	0xFF09: ')',
-	0xFF0A: '*',
-	0xFF0B: '+',
-	0xFF0C: ',',
-	0xFF0D: '-',
-	0xFF0E: '.',
-	0xFF0F: '/',
-	0xFF10: '0',
-	0xFF11: '1',
-	0xFF12: '2',
-	0xFF13: '3',
-	0xFF14: '4',
-	0xFF15: '5',
-	0xFF16: '6',
-	0xFF17: '7',
-	0xFF18: '8',
-	0xFF19: '9',
-	0xFF1A: ':',
-	0xFF1B: ';',
-	0xFF1C: '<',
-	0xFF1D: '=',
-	0xFF1E: '>',
-	0xFF1F: '?',
-	0xFF20: '@',
-	0xFF21: 'A',
-	0xFF22: 'B',
-	0xFF23: 'C',
-	0xFF24: 'D',
-	0xFF25: 'E',
-	0xFF26: 'F',
-	0xFF27: 'G',
-	0xFF28: 'H',
-	0xFF29: 'I',
-	0xFF2A: 'J',
-	0xFF2B: 'K',
-	0xFF2C: 'L',
-	0xFF2D: 'M',
-	0xFF2E: 'N',
-	0xFF2F: 'O',
-	0xFF30: 'P',
-	0xFF31: 'Q',
-	0xFF32: 'R',
-	0xFF33: 'S',
-	0xFF34: 'T',
-	0xFF35: 'U',
-	0xFF36: 'V',
-	0xFF37: 'W',
-	0xFF38: 'X',
-	0xFF39: 'Y',
-	0xFF3A: 'Z',
-	0xFF3B: '[',
-	0xFF3C: '\\',
-	0xFF3D: ']',
-	0xFF3E: '^',
-	0xFF3F: '_',
-	0xFF40: '`',
-	0xFF41: 'a',
-	0xFF42: 'b',
-	0xFF43: 'c',
-	0xFF44: 'd',
-	0xFF45: 'e',
-	0xFF46: 'f',
-	0xFF47: 'g',
-	0xFF48: 'h',
-	0xFF49: 'i',
-	0xFF4A: 'j',
-	0xFF4B: 'k',
-	0xFF4C: 'l',
-	0xFF4D: 'm',
-	0xFF4E: 'n',
-	0xFF4F: 'o',
-	0xFF50: 'p',
-	0xFF51: 'q',
-	0xFF52: 'r',
-	0xFF53: 's',
-	0xFF54: 't',
-	0xFF55: 'u',
-	0xFF56: 'v',
-	0xFF57: 'w',
-	0xFF58: 'x',
-	0xFF59: 'y',
-	0xFF5A: 'z',
-	0xFF5B: '{',
-	0xFF5C: '|',
-	0xFF5D: '}',
-	0xFF5E: '~',
-	0xFFE0: '¢',
-	0xFFE1: '£',
-	0xFFE2: '¬',
-	0xFFE3: '¯',
-	0xFFE5: '¥',
-	0xFFE6: '₩',
+// Detect reports what Sanitize would change, plus detect-only findings
+// (steganographic payloads, homoglyph words, private-use and replacement
+// characters, source pills), without modifying text. Report.Changes is
+// always zero and Report.Modified is always false.
+func Detect(text string, opts *Options) (*Report, error) {
+	if opts == nil {
+		opts = Defaults()
+	}
+	p := newPipeline(text, opts, true)
+	p.run()
+	p.analyzeStego()
+	if p.en[ruleIndex[RuleTrailingWhitespaceStego]] {
+		p.analyzeTrailingWhitespace()
+	}
+	report := &Report{}
+	p.col.build(text, report)
+	report.Changes = ChangeStats{}
+
+	var errs []error
+	for _, d := range opts.ExtraDetectors {
+		fs, err := d.Detect(text)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("detector %s: %w", d.Name(), err))
+			continue
+		}
+		for _, f := range fs {
+			if f.Rule == "" {
+				f.Rule = RuleID(d.Name())
+			}
+			if f.Action == "" {
+				f.Action = ActionDetect
+			}
+			report.Findings = append(report.Findings, f)
+		}
+	}
+	sortFindings(report.Findings)
+	report.Risk = assessRisk(report.Findings)
+	return report, errors.Join(errs...)
+}
+
+// InvalidUTF8Error reports the first invalid UTF-8 byte in an input.
+type InvalidUTF8Error struct {
+	Offset int
+	Byte   byte
+}
+
+func (e *InvalidUTF8Error) Error() string {
+	return fmt.Sprintf("invalid UTF-8 byte 0x%02X at offset %d", e.Byte, e.Offset)
+}
+
+// CheckUTF8 returns an *InvalidUTF8Error if text is not valid UTF-8.
+func CheckUTF8(text string) error {
+	if utf8.ValidString(text) {
+		return nil
+	}
+	for i := 0; i < len(text); {
+		r, size := utf8.DecodeRuneInString(text[i:])
+		if r == utf8.RuneError && size == 1 {
+			return &InvalidUTF8Error{Offset: i, Byte: text[i]}
+		}
+		i += size
+	}
+	return nil
+}
+
+// pipeline runs the sanitization stages in order. Each stage rewrites the
+// previous stage's output; offset maps translate finding positions back to
+// the original input.
+type pipeline struct {
+	opts   *Options
+	en     [maxRules]bool
+	detect bool
+	src    string
+	maps   []*offsetMap
+	col    collector
+	w      rewriter
+	iter   int // current pass of the post-character stages
+
+	mapsBuf [16]*offsetMap
+
+	sawTags, sawVS, sawMath, sawZW bool
+}
+
+func newPipeline(src string, opts *Options, detect bool) *pipeline {
+	p := &pipeline{opts: opts, detect: detect, src: src}
+	p.col.maxPositions = opts.MaxPositions
+	p.maps = p.mapsBuf[:0]
+	for i := range registry {
+		p.en[i] = opts.enabled(ruleIdx(i))
+	}
+	return p
+}
+
+func (p *pipeline) run() string {
+	t := p.stage(p.src, p.charStage)
+	// Removing characters can assemble a new HTML entity ("&\x1b#0;" ->
+	// "&#0;", "&ZeroWidth\aSpace;"); repeat the character stage until the
+	// text is stable.
+	for n := 0; n < 3 && p.en[iHTMLEntity] && p.maps[len(p.maps)-1] != nil && strings.Contains(t, "&"); n++ {
+		t = p.stage(t, p.charStage)
+	}
+	// Removing an artifact or Markdown marker can expose another one
+	// ("# # x", nested citations), so the remaining stages repeat until a
+	// pass changes nothing. Unchanged input costs a single pass.
+	for p.iter = 0; p.iter < maxPasses; p.iter++ {
+		first := len(p.maps)
+		t = p.postStages(t)
+		changed := false
+		for _, m := range p.maps[first:] {
+			changed = changed || m != nil
+		}
+		if !changed {
+			break
+		}
+	}
+	return t
+}
+
+// maxPasses bounds the fixpoint loop in run.
+const maxPasses = 8
+
+func (p *pipeline) postStages(t string) string {
+	if p.anyEnabled(artifactRuleIdx) || p.detect {
+		t = p.stage(t, p.artifactStage)
+	}
+	if p.en[iChatBoilerplate] {
+		t = p.stage(t, p.boilerplateStage)
+	}
+	if p.en[iMarkdown] {
+		for _, m := range markdownRules {
+			t = p.stage(t, m.apply(p))
+		}
+	}
+	if p.en[iDash] && p.opts.dashStyle() == DashComma {
+		t = p.stage(t, p.dashCommaStage)
+	}
+	if p.en[iSmartQuote] || p.en[iDash] || p.en[iEllipsis] || p.en[iPunctuation] || p.en[iCompatFold] {
+		t = p.stage(t, p.typographyStage)
+	}
+	if p.en[iConfusable] || (p.detect && p.en[iMixedScript]) {
+		t = p.stage(t, p.confusableStage)
+	}
+	if p.en[iCollapseWhitespace] {
+		t = p.stage(t, p.collapseStage)
+	}
+	if p.en[iTrim] {
+		t = p.stage(t, p.trimStage)
+	}
+	return t
+}
+
+func (p *pipeline) stage(t string, fn func(string, *rewriter)) string {
+	w := &p.w
+	*w = rewriter{src: t}
+	fn(t, w)
+	out := w.String() // finalizes the offset map
+	p.maps = append(p.maps, w.offsetMap())
+	return out
+}
+
+func (p *pipeline) anyEnabled(idx []ruleIdx) bool {
+	for _, i := range idx {
+		if p.en[i] {
+			return true
+		}
+	}
+	return false
+}
+
+// origin maps an offset in the current stage's input to the original input.
+func (p *pipeline) origin(off int) int {
+	for j := len(p.maps) - 1; j >= 0; j-- {
+		off = p.maps[j].toSource(off)
+	}
+	return off
+}
+
+func (p *pipeline) action(i ruleIdx, a Action) Action {
+	if registry[i].Action == ActionDetect {
+		return ActionDetect
+	}
+	return a
+}
+
+// add records a finding at an offset in the current stage's input.
+func (p *pipeline) add(i ruleIdx, cp rune, name, notation string, off, n int, a Action) *Finding {
+	return p.col.add(i, cp, name, notation, p.origin(off), n, p.action(i, a))
+}
+
+func (p *pipeline) addRune(i ruleIdx, r rune, off int, a Action) {
+	p.col.addRune(i, r, p.origin(off), p.action(i, a))
+}
+
+func assessRisk(fs []Finding) Risk {
+	if len(fs) == 0 {
+		return RiskNone
+	}
+	for _, f := range fs {
+		switch {
+		case f.Category == CategorySteganography && f.Rule != RuleTrailingWhitespaceStego,
+			f.Category == CategoryHomoglyph,
+			f.Rule == RuleTagChar,
+			f.Rule == RuleBidi && isBidiOverride(f.CodePoint):
+			return RiskHigh
+		}
+	}
+	return RiskLow
+}
+
+func isBidiOverride(r rune) bool {
+	return (r >= 0x202A && r <= 0x202E) || (r >= 0x2066 && r <= 0x2069)
+}
+
+// Deprecated: rewriting was removed because it changed meaning and added
+// typographic AI footprints. RewriteStrategy values are ignored.
+type RewriteStrategy int
+
+// Deprecated: see RewriteStrategy.
+const (
+	RewriteNone RewriteStrategy = iota
+	RewriteLight
+	RewriteAggressive
+)
+
+// Deprecated: use Sanitize. The strategy is ignored and no rewriting is
+// performed; this function will be removed in a future release.
+func SanitizeWithRewrite(text string, opts *Options, strategy RewriteStrategy) (string, *Report, error) {
+	out, report := Sanitize(text, opts)
+	return out, report, nil
 }

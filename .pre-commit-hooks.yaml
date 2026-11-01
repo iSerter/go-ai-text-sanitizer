@@ -1,0 +1,13 @@
+- id: ai-text-sanitizer
+  name: ai-text-sanitizer (check)
+  description: Fail when files contain invisible Unicode watermarks or LLM artifacts that would be removed.
+  entry: ai-text-sanitizer --check
+  language: golang
+  types: [text]
+
+- id: ai-text-sanitizer-fix
+  name: ai-text-sanitizer (fix)
+  description: Remove invisible Unicode watermarks and LLM artifacts in place.
+  entry: ai-text-sanitizer --in-place --no-backup
+  language: golang
+  types: [text]

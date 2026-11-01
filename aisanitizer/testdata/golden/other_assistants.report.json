@@ -1,0 +1,184 @@
+{
+  "modified": false,
+  "risk": "low",
+  "changes": {
+    "removed_zero_width": 0,
+    "removed_bidi": 0,
+    "removed_invisible_math": 0,
+    "removed_variation_selectors": 0,
+    "removed_tag_chars": 0,
+    "removed_format_chars": 0,
+    "removed_braille_blank": 0,
+    "removed_noncharacters": 0,
+    "removed_private_use": 0,
+    "removed_control": 0,
+    "removed_ansi_escapes": 0,
+    "removed_html_entities": 0,
+    "removed_citations": 0,
+    "removed_model_artifacts": 0,
+    "removed_tracking_params": 0,
+    "removed_boilerplate": 0,
+    "stripped_markdown": 0,
+    "normalized_spaces": 0,
+    "normalized_line_separators": 0,
+    "normalized_smart_quotes": 0,
+    "normalized_dashes": 0,
+    "normalized_ellipsis": 0,
+    "normalized_punctuation": 0,
+    "folded_compatibility": 0,
+    "folded_confusables": 0,
+    "collapsed_spaces": 0,
+    "trimmed_whitespace": 0,
+    "replaced_invalid_utf8": 0,
+    "total": 0
+  },
+  "findings": [
+    {
+      "rule": "artifact.gemini_citation",
+      "category": "artifact",
+      "action": "remove",
+      "name": "GEMINI CITATION",
+      "notation": "[cite: 2, 6]",
+      "index": 17,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 17,
+          "line": 1,
+          "column": 18
+        },
+        {
+          "offset": 31,
+          "line": 2,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "artifact.gemini_span",
+      "category": "artifact",
+      "action": "remove",
+      "name": "GEMINI SPAN MARKER",
+      "notation": "[span_1](start_span)",
+      "index": 67,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 67,
+          "line": 3,
+          "column": 1
+        },
+        {
+          "offset": 97,
+          "line": 3,
+          "column": 31
+        }
+      ]
+    },
+    {
+      "rule": "artifact.perplexity_tag",
+      "category": "artifact",
+      "action": "remove",
+      "name": "PERPLEXITY SOURCE TAG",
+      "notation": "[web:1]",
+      "index": 155,
+      "count": 3,
+      "positions": [
+        {
+          "offset": 155,
+          "line": 4,
+          "column": 31
+        },
+        {
+          "offset": 162,
+          "line": 4,
+          "column": 38
+        },
+        {
+          "offset": 195,
+          "line": 5,
+          "column": 25
+        }
+      ]
+    },
+    {
+      "rule": "artifact.grok_card",
+      "category": "artifact",
+      "action": "remove",
+      "name": "GROK CITATION CARD",
+      "notation": "\u003cgrok-card data-id=\"e8ff4f\" data-type=\"citation_card\"\u003e\u003c/grok…",
+      "index": 231,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 231,
+          "line": 6,
+          "column": 6
+        },
+        {
+          "offset": 314,
+          "line": 7,
+          "column": 6
+        }
+      ]
+    },
+    {
+      "rule": "artifact.attribution_json",
+      "category": "artifact",
+      "action": "replace",
+      "name": "CHATGPT ATTRIBUTION WRAPPER",
+      "notation": "^[The sky is blue.]({\"attribution\":{\"attributableIndex\":\"100…",
+      "index": 379,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 379,
+          "line": 8,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "artifact.writing_block",
+      "category": "artifact",
+      "action": "replace",
+      "name": "CANVAS WRAPPER",
+      "notation": ":::writing{variant=\"email\" id=\"51234\"}\n",
+      "index": 447,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 447,
+          "line": 9,
+          "column": 1
+        },
+        {
+          "offset": 510,
+          "line": 12,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "artifact.source_pill",
+      "category": "artifact",
+      "action": "detect",
+      "name": "CHATGPT SOURCE PILL",
+      "notation": "Wikipedia+1",
+      "index": 536,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 536,
+          "line": 13,
+          "column": 23
+        },
+        {
+          "offset": 555,
+          "line": 13,
+          "column": 42
+        }
+      ]
+    }
+  ]
+}

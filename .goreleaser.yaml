@@ -1,0 +1,38 @@
+version: 2
+project_name: ai-text-sanitizer
+
+builds:
+  - main: ./cmd/ai-text-sanitizer
+    binary: ai-text-sanitizer
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  # release-please maintains CHANGELOG.md and the release notes.
+  disable: true
+
+release:
+  # The release is created by release-please; only attach artifacts.
+  mode: keep-existing

@@ -1,0 +1,65 @@
+name: ai-text-sanitizer
+description: Detect invisible Unicode watermarks, hidden payloads and LLM artifacts in text files.
+branding:
+  icon: eye
+  color: blue
+
+inputs:
+  paths:
+    description: Files or directories to scan (space-separated).
+    default: "."
+  args:
+    description: Extra ai-text-sanitizer arguments, e.g. "--include '*.md' --preset safe".
+    default: ""
+  mode:
+    description: "detect: fail on any finding. check: fail only on files that would change. report: never fail."
+    default: detect
+  sarif-file:
+    description: Where to write the SARIF report (default $RUNNER_TEMP/ai-text-sanitizer.sarif, outside the scanned tree).
+    default: ""
+  version:
+    description: Version of ai-text-sanitizer to install (a tag such as v1.2.3, or latest).
+    default: latest
+
+outputs:
+  sarif-file:
+    description: Path of the SARIF report.
+    value: ${{ steps.scan.outputs.sarif-file }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: "1.25"
+        cache: false
+    - name: Install ai-text-sanitizer
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: go install "github.com/iSerter/go-ai-text-sanitizer/cmd/ai-text-sanitizer@${VERSION}"
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        PATHS: ${{ inputs.paths }}
+        ARGS: ${{ inputs.args }}
+        MODE: ${{ inputs.mode }}
+        SARIF: ${{ inputs.sarif-file }}
+      run: |
+        set +e
+        SARIF="${SARIF:-$RUNNER_TEMP/ai-text-sanitizer.sarif}"
+        echo "sarif-file=$SARIF" >> "$GITHUB_OUTPUT"
+        # ARGS may contain quoted globs; PATHS is intentionally word-split.
+        # The report itself is never scanned, even if written inside PATHS.
+        eval "set -- --exclude \"\$(basename \"\$SARIF\")\" $ARGS"
+        ai-text-sanitizer --detect-only --format sarif "$@" $PATHS > "$SARIF"
+        detect=$?
+        ai-text-sanitizer --detect-only "$@" $PATHS
+        [ "$detect" -eq 1 ] && exit 1 # usage or I/O error
+        case "$MODE" in
+          detect) [ "$detect" -eq 0 ] || exit 1 ;;
+          check) ai-text-sanitizer --check "$@" $PATHS || exit 1 ;;
+          report) ;;
+          *) echo "unknown mode: $MODE" >&2; exit 1 ;;
+        esac

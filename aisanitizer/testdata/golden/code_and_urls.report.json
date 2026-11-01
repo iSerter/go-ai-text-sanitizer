@@ -1,0 +1,224 @@
+{
+  "modified": false,
+  "risk": "low",
+  "changes": {
+    "removed_zero_width": 0,
+    "removed_bidi": 0,
+    "removed_invisible_math": 0,
+    "removed_variation_selectors": 0,
+    "removed_tag_chars": 0,
+    "removed_format_chars": 0,
+    "removed_braille_blank": 0,
+    "removed_noncharacters": 0,
+    "removed_private_use": 0,
+    "removed_control": 0,
+    "removed_ansi_escapes": 0,
+    "removed_html_entities": 0,
+    "removed_citations": 0,
+    "removed_model_artifacts": 0,
+    "removed_tracking_params": 0,
+    "removed_boilerplate": 0,
+    "stripped_markdown": 0,
+    "normalized_spaces": 0,
+    "normalized_line_separators": 0,
+    "normalized_smart_quotes": 0,
+    "normalized_dashes": 0,
+    "normalized_ellipsis": 0,
+    "normalized_punctuation": 0,
+    "folded_compatibility": 0,
+    "folded_confusables": 0,
+    "collapsed_spaces": 0,
+    "trimmed_whitespace": 0,
+    "replaced_invalid_utf8": 0,
+    "total": 0
+  },
+  "findings": [
+    {
+      "rule": "markdown",
+      "category": "typography",
+      "action": "replace",
+      "name": "MARKDOWN HEADING",
+      "notation": "## Setup",
+      "index": 0,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "smart_quote",
+      "category": "typography",
+      "action": "replace",
+      "name": "LEFT DOUBLE QUOTATION MARK",
+      "notation": "U+201C",
+      "code_point": 8220,
+      "index": 18,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 18,
+          "line": 3,
+          "column": 9
+        }
+      ]
+    },
+    {
+      "rule": "smart_quote",
+      "category": "typography",
+      "action": "replace",
+      "name": "RIGHT DOUBLE QUOTATION MARK",
+      "notation": "U+201D",
+      "code_point": 8221,
+      "index": 30,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 30,
+          "line": 3,
+          "column": 19
+        }
+      ]
+    },
+    {
+      "rule": "dash",
+      "category": "typography",
+      "action": "replace",
+      "name": "EM DASH",
+      "notation": "U+2014",
+      "code_point": 8212,
+      "index": 34,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 34,
+          "line": 3,
+          "column": 21
+        }
+      ]
+    },
+    {
+      "rule": "smart_quote",
+      "category": "typography",
+      "action": "replace",
+      "name": "RIGHT SINGLE QUOTATION MARK",
+      "notation": "U+2019",
+      "code_point": 8217,
+      "index": 40,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 40,
+          "line": 3,
+          "column": 25
+        }
+      ]
+    },
+    {
+      "rule": "ellipsis",
+      "category": "typography",
+      "action": "replace",
+      "name": "HORIZONTAL ELLIPSIS",
+      "notation": "U+2026",
+      "code_point": 8230,
+      "index": 50,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 50,
+          "line": 3,
+          "column": 33
+        }
+      ]
+    },
+    {
+      "rule": "artifact.tracking_param",
+      "category": "artifact",
+      "action": "replace",
+      "name": "AI REFERRAL PARAMETER",
+      "notation": "https://example.com/a—b?utm_source=chatgpt.com",
+      "index": 150,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 150,
+          "line": 13,
+          "column": 29
+        }
+      ]
+    },
+    {
+      "rule": "markdown",
+      "category": "typography",
+      "action": "replace",
+      "name": "MARKDOWN BULLET",
+      "notation": "* ",
+      "index": 223,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 223,
+          "line": 14,
+          "column": 1
+        },
+        {
+          "offset": 234,
+          "line": 15,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "markdown",
+      "category": "typography",
+      "action": "replace",
+      "name": "MARKDOWN BOLD",
+      "notation": "**two**",
+      "index": 241,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 241,
+          "line": 15,
+          "column": 8
+        }
+      ]
+    },
+    {
+      "rule": "zero_width",
+      "category": "invisible",
+      "action": "remove",
+      "name": "ZERO WIDTH SPACE",
+      "notation": "U+200B",
+      "code_point": 8203,
+      "index": 248,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 248,
+          "line": 15,
+          "column": 15
+        }
+      ]
+    },
+    {
+      "rule": "trim",
+      "category": "whitespace",
+      "action": "remove",
+      "name": "TRAILING WHITESPACE",
+      "notation": "",
+      "index": 251,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 251,
+          "line": 15,
+          "column": 16
+        }
+      ]
+    }
+  ]
+}

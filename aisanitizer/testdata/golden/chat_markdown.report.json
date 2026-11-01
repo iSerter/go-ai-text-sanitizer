@@ -1,0 +1,354 @@
+{
+  "modified": false,
+  "risk": "low",
+  "changes": {
+    "removed_zero_width": 0,
+    "removed_bidi": 0,
+    "removed_invisible_math": 0,
+    "removed_variation_selectors": 0,
+    "removed_tag_chars": 0,
+    "removed_format_chars": 0,
+    "removed_braille_blank": 0,
+    "removed_noncharacters": 0,
+    "removed_private_use": 0,
+    "removed_control": 0,
+    "removed_ansi_escapes": 0,
+    "removed_html_entities": 0,
+    "removed_citations": 0,
+    "removed_model_artifacts": 0,
+    "removed_tracking_params": 0,
+    "removed_boilerplate": 0,
+    "stripped_markdown": 0,
+    "normalized_spaces": 0,
+    "normalized_line_separators": 0,
+    "normalized_smart_quotes": 0,
+    "normalized_dashes": 0,
+    "normalized_ellipsis": 0,
+    "normalized_punctuation": 0,
+    "folded_compatibility": 0,
+    "folded_confusables": 0,
+    "collapsed_spaces": 0,
+    "trimmed_whitespace": 0,
+    "replaced_invalid_utf8": 0,
+    "total": 0
+  },
+  "findings": [
+    {
+      "rule": "artifact.chat_boilerplate",
+      "category": "artifact",
+      "action": "remove",
+      "name": "CHAT BOILERPLATE LINE",
+      "notation": "Sure! Here's the polished version:",
+      "index": 0,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "offset": 311,
+          "line": 16,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "markdown",
+      "category": "typography",
+      "action": "replace",
+      "name": "MARKDOWN HEADING",
+      "notation": "# Quarterly Update",
+      "index": 36,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 36,
+          "line": 3,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "artifact.chat_boilerplate",
+      "category": "artifact",
+      "action": "remove",
+      "name": "CHAT BOILERPLATE CLAUSE",
+      "notation": "As an AI language model, ",
+      "index": 56,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 56,
+          "line": 5,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "smart_quote",
+      "category": "typography",
+      "action": "replace",
+      "name": "RIGHT SINGLE QUOTATION MARK",
+      "notation": "U+2019",
+      "code_point": 8217,
+      "index": 86,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 86,
+          "line": 5,
+          "column": 31
+        },
+        {
+          "offset": 118,
+          "line": 5,
+          "column": 59
+        }
+      ]
+    },
+    {
+      "rule": "dash",
+      "category": "typography",
+      "action": "replace",
+      "name": "EM DASH",
+      "notation": "U+2014",
+      "code_point": 8212,
+      "index": 106,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 106,
+          "line": 5,
+          "column": 49
+        },
+        {
+          "offset": 166,
+          "line": 7,
+          "column": 26
+        }
+      ]
+    },
+    {
+      "rule": "ellipsis",
+      "category": "typography",
+      "action": "replace",
+      "name": "HORIZONTAL ELLIPSIS",
+      "notation": "U+2026",
+      "code_point": 8230,
+      "index": 134,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 134,
+          "line": 5,
+          "column": 73
+        }
+      ]
+    },
+    {
+      "rule": "markdown",
+      "category": "typography",
+      "action": "replace",
+      "name": "MARKDOWN BOLD",
+      "notation": "**Revenue**",
+      "index": 139,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 139,
+          "line": 7,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "exotic_space",
+      "category": "whitespace",
+      "action": "replace",
+      "name": "NARROW NO-BREAK SPACE",
+      "notation": "U+202F",
+      "code_point": 8239,
+      "index": 161,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 161,
+          "line": 7,
+          "column": 23
+        }
+      ]
+    },
+    {
+      "rule": "markdown",
+      "category": "typography",
+      "action": "replace",
+      "name": "MARKDOWN ITALIC",
+      "notation": " *strong*",
+      "index": 179,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 179,
+          "line": 7,
+          "column": 37
+        }
+      ]
+    },
+    {
+      "rule": "collapse_whitespace",
+      "category": "whitespace",
+      "action": "remove",
+      "name": "EXCESS BLANK LINE",
+      "notation": "",
+      "index": 198,
+      "count": 2,
+      "positions": [
+        {
+          "offset": 198,
+          "line": 9,
+          "column": 1
+        },
+        {
+          "offset": 199,
+          "line": 10,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "rule": "compat_fold",
+      "category": "typography",
+      "action": "replace",
+      "name": "",
+      "notation": "U+FF14",
+      "code_point": 65300,
+      "index": 209,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 209,
+          "line": 11,
+          "column": 10
+        }
+      ]
+    },
+    {
+      "rule": "compat_fold",
+      "category": "typography",
+      "action": "replace",
+      "name": "",
+      "notation": "U+FF15",
+      "code_point": 65301,
+      "index": 212,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 212,
+          "line": 11,
+          "column": 11
+        }
+      ]
+    },
+    {
+      "rule": "exotic_space",
+      "category": "whitespace",
+      "action": "replace",
+      "name": "THIN SPACE",
+      "notation": "U+2009",
+      "code_point": 8201,
+      "index": 215,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 215,
+          "line": 11,
+          "column": 12
+        }
+      ]
+    },
+    {
+      "rule": "compat_fold",
+      "category": "typography",
+      "action": "replace",
+      "name": "",
+      "notation": "U+1D7D1",
+      "code_point": 120785,
+      "index": 230,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 230,
+          "line": 12,
+          "column": 11
+        }
+      ]
+    },
+    {
+      "rule": "compat_fold",
+      "category": "typography",
+      "action": "replace",
+      "name": "",
+      "notation": "U+1D7CE",
+      "code_point": 120782,
+      "index": 234,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 234,
+          "line": 12,
+          "column": 12
+        }
+      ]
+    },
+    {
+      "rule": "markdown",
+      "category": "typography",
+      "action": "replace",
+      "name": "MARKDOWN LINK",
+      "notation": "[our blog](https://example.com/blog)",
+      "index": 254,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 254,
+          "line": 14,
+          "column": 14
+        }
+      ]
+    },
+    {
+      "rule": "artifact.tracking_param",
+      "category": "artifact",
+      "action": "replace",
+      "name": "AI REFERRAL PARAMETER",
+      "notation": "https://example.com/blog?utm_source=openai",
+      "index": 265,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 265,
+          "line": 14,
+          "column": 25
+        }
+      ]
+    },
+    {
+      "rule": "trim",
+      "category": "whitespace",
+      "action": "remove",
+      "name": "TRAILING WHITESPACE",
+      "notation": "",
+      "index": 309,
+      "count": 1,
+      "positions": [
+        {
+          "offset": 309,
+          "line": 14,
+          "column": 69
+        }
+      ]
+    }
+  ]
+}
